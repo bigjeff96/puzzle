@@ -11,10 +11,10 @@ NONE :: 0
 Piece :: [Sides]int
 
 Sides :: enum {
-    left  = 0,
-    top   = 1,
-    right = 2,
-    bottom  = 3,
+    left   = 0,
+    top    = 1,
+    right  = 2,
+    bottom = 3,
 }
 
 opposite := [Sides]Sides{
@@ -33,8 +33,8 @@ normal := [Sides][2]int {
 
 Puzzle :: struct {
     pieces: []Piece,
-    dims: [2]int,
-    total: int,
+    dims:   [2]int,
+    total:  int,
 }
 
 total_unique_connections_types_in_puzzle :: proc(p: Puzzle) -> int {
