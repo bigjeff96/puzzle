@@ -151,6 +151,7 @@ solve_puzzle :: proc(p: ^Puzzle) -> bool {
     recursive_solve :: proc(p: ^Puzzle, id_next_piece_to_find: int, id_start_of_next_pieces: int) -> bool {
         if id_next_piece_to_find == len(p.pieces) do return true
 
+        assume(PIECES_ARE_ALREADY_IN_THE_RIGHT_ORIENTATION)
         // get the neighbor pieces that are already solved
         // and we know they are solved since their id will be smaller than id_next_piece_to_find
         coords_for_future_piece := id_to_coord(p, id_next_piece_to_find)
@@ -238,7 +239,8 @@ puzzle_solved :: proc(p: Puzzle) -> bool {
 
 // :main
 main :: proc() {
-when ODIN_DEBUG {
+when ODIN_DEBUG
+{
     context.logger = log.create_console_logger(opt = {.Level, .Short_File_Path, .Line, .Terminal_Color})
     defer log.destroy_console_logger(context.logger)
 }
@@ -247,11 +249,11 @@ when ODIN_DEBUG {
     p := init_square_puzzle(int(dims))
     assert(puzzle_solved(p))
 
-    // fixing the seed, (seed == 0 same thing as using the current time as the seed, bad stuff dude)
     // rand.reset(1)
     // lets make a "puzzle" now
     rand.shuffle(p.pieces)
-when REAL_SHUFFLE {
+when REAL_SHUFFLE
+{
     for &piece in p.pieces {
         n := rand.int_max(4)
         rotate_piece_left_n(&piece, n)
@@ -266,13 +268,14 @@ when REAL_SHUFFLE {
     assert(puzzle_solved(p))
 }
 
+
+assume :: proc($T: bool) {/*THIS IS A NOP*/}
+
 REAL_SHUFFLE :: #config(REAL_SHUFFLE, false)
-
-/*
-FUCKKKKKK, I am not dealing with the fact that we have the degree of freedom to rotate the pieces when
-shuffling the bord, which I will deaf need to have a jigsaw puzzle with 2 solutions
-*/
-
+// Inspired from the better software conference talk from Andrew Reece
+// Have markers in your code  (#define ASSUMPTION ) that represent the assumptions in your code
+// and when you change/remove that assumption, the compiler will tell you where you'll need to revisite
+PIECES_ARE_ALREADY_IN_THE_RIGHT_ORIENTATION :: true
 
 // :using :logs
 debug :: log.debug
@@ -281,3 +284,5 @@ info :: log.info
 infof :: log.infof
 warn :: log.warn
 warnf :: log.warnf
+error :: log.error
+errorf :: log.errorf

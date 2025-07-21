@@ -1,0 +1,8 @@
++ Have the puzzle shuffle change the orientation of the pieces
+* Have the solver be able to deal with the pieces being in the wrong orientaion
+    - Be able to exit out of a long chain of "fitting" pieces until you can't find any piece
+      (with all possible orientations)
+* Have a Jigsaw puzzle generator than can generate puzzles where the connection types are not unique (Ignoring the BORDER)
+* Be able to find "all" the solutions from a single jigsaw puzzle
+* Have a way to serialize/deserialize a puzzle and its solutions (maybe a way to distinguish unique solutions found from the sover)
+* Use multi-threading/create multiple processes to do a large search of puzzles with just 2 solutions (and which the 2 solutions are very distinct)
