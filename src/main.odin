@@ -7,6 +7,7 @@ import "core:math"
 import "core:math/rand"
 import "core:math/bits"
 import "core:slice"
+import sa "core:container/small_array"
 
 // :struct
 BORDER :: -1
@@ -125,7 +126,7 @@ get_neighbor_piece_id :: proc(p: Puzzle, id: int, side: Sides) -> int {
     return coord_to_id(p, neighbor_coords)
 }
 
-solve_puzzle :: proc(p: ^Puzzle) -> bool {
+solve_puzzle_v0 :: proc(p: ^Puzzle) -> bool {
     // Find the bottom left piece
     bottom_left_id := 0
     for piece, id in p.pieces {
@@ -211,6 +212,24 @@ solve_puzzle :: proc(p: ^Puzzle) -> bool {
     }
 
     return recursive_solve(p, id_next_piece_to_find = 1, id_start_of_next_pieces = 1)
+}
+
+solve_puzzle ::proc(p: ^Puzzle) -> bool {
+    // get the corner pieces
+    corner_ids : sa.Small_Array(4, int)
+    for piece, id in p.pieces {
+        side_is_border : bit_set[Sides]
+        for side in Sides do if piece[side] == BORDER {
+            side_is_border |= {side}
+        }
+        if card(side_is_border) == 2 do sa.append(&corner_ids, id)
+    }
+
+    solution_ids : [dynamic]int
+
+
+
+    return false
 }
 
 puzzle_solved :: proc(p: Puzzle) -> bool {
