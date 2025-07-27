@@ -126,6 +126,14 @@ get_neighbor_piece_id :: proc(p: Puzzle, id: int, side: Sides) -> int {
     return coord_to_id(p, neighbor_coords)
 }
 
+copy_puzzle :: proc(p: Puzzle, allocator := context.allocator) -> Puzzle {
+    res: Puzzle
+    res = p
+    res.pieces = make([]Piece, p.total, allocator)
+    copy_slice(res.pieces, p.pieces)
+    return res
+}
+
 solve_puzzle_v0 :: proc(p: ^Puzzle) -> bool {
     // Find the bottom left piece
     bottom_left_id := 0
@@ -240,20 +248,20 @@ solve_puzzle ::proc(p: ^Puzzle) -> (bool, Puzzle) {
         puzzle := solutions[id]
         slice.swap(puzzle.pieces, 0, corner_id)
         pieces := puzzle.pieces
-        for pieces[0][.left] != BORDER && pieces[0][.bottom] != BORDER do rotate_piece_left(&pieces[0])
+        for pieces[0][.left] != BORDER || pieces[0][.bottom] != BORDER do rotate_piece_left(&pieces[0])
         assert(pieces[0][.left] == BORDER && pieces[0][.bottom] == BORDER)
 
-        solved := recursive_solve(&puzzle, id_next_piece_to_find = 1, id_start_of_next_pieces = 1)
+        solved, solution := recursive_solve(&puzzle, id_next_piece_to_find = 1, id_start_of_next_pieces = 1)
         if solved {
             solved_puzzle := solutions[id]
             solved_puzzle.pieces = make([]Piece, p.total, context.allocator)
-            copy_slice(solved_puzzle.pieces, solutions[id].pieces)
+            copy_slice(solved_puzzle.pieces, solution)
             return true, solved_puzzle
         }
     }
-
-    recursive_solve :: proc(p: ^Puzzle, id_next_piece_to_find, id_start_of_next_pieces: int) -> bool {
-        if id_next_piece_to_find == len(p.pieces) do return true
+    //TODO: will need to rewrite this to make it non-recursive
+    recursive_solve :: proc(p: ^Puzzle, id_next_piece_to_find, id_start_of_next_pieces: int) -> (bool, []Piece) {
+        if id_next_piece_to_find == len(p.pieces) do return true, p.pieces
 
         coords_for_future_piece := id_to_coord(p, id_next_piece_to_find)
         sides_to_validate : bit_set[Sides]
@@ -287,7 +295,38 @@ solve_puzzle ::proc(p: ^Puzzle) -> (bool, Puzzle) {
             }
         }
 
-        return false
+        next_pieces := p.pieces[id_start_of_next_pieces:]
+
+        for &piece, id in next_pieces {
+            big_ok := false
+            outer: for _ in 0..<4 {
+                rotate_piece_left(&piece)
+                ok := true
+                for side in Sides do if side in sides_to_validate {
+                    if piece[side] != sides_to_connect[side] {
+                        ok = false
+                        break
+                    }
+                }
+                if ok {
+                    big_ok = true
+                    break outer
+                }
+            }
+
+            if big_ok {
+                copied_puzzle := copy_puzzle(p^, context.temp_allocator)
+                slice.swap(copied_puzzle.pieces, id + id_start_of_next_pieces, id_next_piece_to_find)
+                solved, solution := recursive_solve(&copied_puzzle,
+                                                    id_next_piece_to_find + 1,
+                                                    id_start_of_next_pieces + 1)
+
+                if solved do return true, solution
+            }
+
+        }
+
+        return false, {}
     }
 
     return false, {}
@@ -321,7 +360,7 @@ puzzle_solved :: proc(p: Puzzle) -> bool {
 main :: proc() {
 when ODIN_DEBUG
 {
-    context.logger = log.create_console_logger(opt = {.Level, .Short_File_Path, .Line, .Terminal_Color})
+    context.logger = log.create_console_logger(opt = {.Level, .Short_File_Path, .Line})
     defer log.destroy_console_logger(context.logger)
 }
     dims, ok := strconv.parse_i64(os.args[1])
@@ -342,10 +381,10 @@ when REAL_SHUFFLE
 }
     info("Pieces after shuffle:", p.pieces)
 
-    solved, _ := solve_puzzle(&p)
+    solved, solved_puzzle := solve_puzzle(&p)
     info("Solved?", solved)
-    info("Pieces after solve:", p.pieces)
-    assert(puzzle_solved(p))
+    info("Pieces after solve:", solved_puzzle.pieces)
+    assert(puzzle_solved(solved_puzzle))
 }
 
 
