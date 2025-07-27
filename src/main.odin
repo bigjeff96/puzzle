@@ -214,7 +214,7 @@ solve_puzzle_v0 :: proc(p: ^Puzzle) -> bool {
     return recursive_solve(p, id_next_piece_to_find = 1, id_start_of_next_pieces = 1)
 }
 
-solve_puzzle ::proc(p: ^Puzzle) -> bool {
+solve_puzzle ::proc(p: ^Puzzle) -> (bool, Puzzle) {
     // get the corner pieces
     corner_ids : sa.Small_Array(4, int)
     for piece, id in p.pieces {
@@ -225,11 +225,72 @@ solve_puzzle ::proc(p: ^Puzzle) -> bool {
         if card(side_is_border) == 2 do sa.append(&corner_ids, id)
     }
 
-    solution_ids : [dynamic]int
+    // for each corner piece, make a copy slice of the pieces
+    solutions : [4]Puzzle
+    for &solution in solutions {
+        solution = p^
+        solution.pieces = make([]Piece, p.total, context.temp_allocator)
+        copy_slice(solution.pieces, p.pieces)
+    }
+    defer free_all(context.temp_allocator)
 
 
+    for corner_id, id in sa.slice(&corner_ids) {
+        // move corner_piece to [0,0] while also rotate it to the right place
+        puzzle := solutions[id]
+        slice.swap(puzzle.pieces, 0, corner_id)
+        pieces := puzzle.pieces
+        for pieces[0][.left] != BORDER && pieces[0][.bottom] != BORDER do rotate_piece_left(&pieces[0])
+        assert(pieces[0][.left] == BORDER && pieces[0][.bottom] == BORDER)
 
-    return false
+        solved := recursive_solve(&puzzle, id_next_piece_to_find = 1, id_start_of_next_pieces = 1)
+        if solved {
+            solved_puzzle := solutions[id]
+            solved_puzzle.pieces = make([]Piece, p.total, context.allocator)
+            copy_slice(solved_puzzle.pieces, solutions[id].pieces)
+            return true, solved_puzzle
+        }
+    }
+
+    recursive_solve :: proc(p: ^Puzzle, id_next_piece_to_find, id_start_of_next_pieces: int) -> bool {
+        if id_next_piece_to_find == len(p.pieces) do return true
+
+        coords_for_future_piece := id_to_coord(p, id_next_piece_to_find)
+        sides_to_validate : bit_set[Sides]
+        sides_to_connect : [Sides]int
+
+        { //deal with the borders
+            if coords_for_future_piece.x == 0            {
+                sides_to_validate |= {.left}
+                sides_to_connect[.left] = BORDER
+            }
+            if coords_for_future_piece.x == p.dims.x - 1 {
+                sides_to_validate |= {.right}
+                sides_to_connect[.right] = BORDER
+            }
+            if coords_for_future_piece.y == 0            {
+                sides_to_validate |= {.bottom}
+                sides_to_connect[.bottom] = BORDER
+            }
+            if coords_for_future_piece.y == p.dims.y - 1 {
+                sides_to_validate |= {.top}
+                sides_to_connect[.top] = BORDER
+            }
+        }
+
+        for side in Sides do if side not_in sides_to_validate {
+            neighbor_id := get_neighbor_piece_id(p^, id_next_piece_to_find, side)
+            if neighbor_id < id_next_piece_to_find {
+                neighbor_piece := &p.pieces[neighbor_id]
+                sides_to_validate |= {side}
+                sides_to_connect[side] = neighbor_piece[opposite[side]]
+            }
+        }
+
+        return false
+    }
+
+    return false, {}
 }
 
 puzzle_solved :: proc(p: Puzzle) -> bool {
@@ -281,7 +342,7 @@ when REAL_SHUFFLE
 }
     info("Pieces after shuffle:", p.pieces)
 
-    solved := solve_puzzle(&p)
+    solved, _ := solve_puzzle(&p)
     info("Solved?", solved)
     info("Pieces after solve:", p.pieces)
     assert(puzzle_solved(p))
