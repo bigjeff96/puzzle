@@ -1,12 +1,11 @@
 
 build:
     mkdir -p build
-    odin build src/ -out:build/puzzle.exe -show-timings \\
-                                          -debug \\
-                                          -linker:lld \\
-                                          -define:REAL_SHUFFLE=true \\
-                                          -define:DEFAULT_TEMP_ALLOCATOR_BACKING_SIZE=1_000_000_000 \\
-                                          -sanitize:address \\
+    odin build src/ -out:build/puzzle.exe -show-timings \
+                                          -debug \
+                                          -o:speed \
+                                          -linker:lld \
+                                          -define:DEFAULT_TEMP_ALLOCATOR_BACKING_SIZE=4_000_000_000 \
 
 run DIM: build
     ./build/puzzle.exe {{DIM}}
